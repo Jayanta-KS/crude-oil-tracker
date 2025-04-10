@@ -1,116 +1,129 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Crude Oil Price Tracker</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     body {
       font-family: Arial, sans-serif;
-      margin: 0;
-      padding: 0;
       background-color: #f8f9fa;
+      margin: 0;
+      padding: 20px;
     }
     .container {
       max-width: 900px;
-      margin: 40px auto;
-      padding: 20px;
+      margin: auto;
       background: #fff;
-      border-radius: 12px;
-      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-    }
-    .card {
       padding: 20px;
-      margin-bottom: 20px;
-      background-color: #f1f3f5;
-      border-radius: 10px;
+      border-radius: 8px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
     }
     h1 {
       text-align: center;
     }
     .prices {
       display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
       justify-content: space-around;
+      margin-bottom: 20px;
     }
     .price-card {
-      flex: 1 1 150px;
-      background: #dee2e6;
+      background: #e9ecef;
       padding: 15px;
       border-radius: 8px;
       text-align: center;
+      width: 22%;
+    }
+    canvas {
+      max-width: 100%;
     }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1>🌍 Crude Oil Price Tracker</h1>
-    <div class="card">
-      <div class="prices">
-        <div class="price-card">
-          <h3>Brent</h3>
-          <p>$88</p>
-        </div>
-        <div class="price-card">
-          <h3>WTI</h3>
-          <p>$84</p>
-        </div>
-        <div class="price-card">
-          <h3>Dubai</h3>
-          <p>$82</p>
-        </div>
-        <div class="price-card">
-          <h3>Indian Basket</h3>
-          <p>$85</p>
-        </div>
-        <div class="price-card">
-          <h3>Urals</h3>
-          <p>$79</p>
-        </div>
+    <h1>Crude Oil Price Tracker</h1>
+    <div class="prices">
+      <div class="price-card">
+        <h3>Brent</h3>
+        <p id="brent-price">Loading...</p>
+      </div>
+      <div class="price-card">
+        <h3>WTI</h3>
+        <p id="wti-price">Loading...</p>
+      </div>
+      <div class="price-card">
+        <h3>Urals</h3>
+        <p id="urals-price">Data not available</p>
+      </div>
+      <div class="price-card">
+        <h3>Indian Basket</h3>
+        <p id="indian-basket-price">Data not available</p>
       </div>
     </div>
-
-    <div class="card">
-      <canvas id="priceChart" height="100"></canvas>
-    </div>
+    <canvas id="priceChart"></canvas>
   </div>
 
   <script>
-    const ctx = document.getElementById('priceChart').getContext('2d');
-    const priceChart = new Chart(ctx, {
-      type: 'line',
-      data: {
-        labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'],
-        datasets: [
-          {
-            label: 'Brent',
-            data: [86, 87, 88, 87.5, 88],
-            borderColor: 'rgba(255, 99, 132, 1)',
-            fill: false
-          },
-          {
-            label: 'WTI',
-            data: [82, 83.5, 84, 83.8, 84],
-            borderColor: 'rgba(54, 162, 235, 1)',
-            fill: false
-          }
-        ]
-      },
-      options: {
-        responsive: true,
-        plugins: {
-          legend: {
-            position: 'top'
-          },
-          title: {
-            display: true,
-            text: 'Crude Oil Prices (Weekly Trend)'
+    const apiKey = 'YOUR_EIA_API_KEY'; // Replace with your EIA API key
+    const brentSeriesId = 'PET.RBRTE.D';
+    const wtiSeriesId = 'PET.RWTC.D';
+
+    async function fetchPrice(seriesId) {
+      const url = `https://api.eia.gov/series/?api_key=${apiKey}&series_id=${seriesId}`;
+      try {
+        const response = await fetch(url);
+        const data = await response.json();
+        if (data.series && data.series.length > 0) {
+          return data.series[0].data[0][1]; // Latest price
+        } else {
+          console.error('No data found for series ID:', seriesId);
+          return null;
+        }
+      } catch (error) {
+        console.error('Error fetching data:', error);
+        return null;
+      }
+    }
+
+    async function updatePrices() {
+      const brentPrice = await fetchPrice(brentSeriesId);
+      const wtiPrice = await fetchPrice(wtiSeriesId);
+
+      document.getElementById('brent-price').textContent = brentPrice ? `$${brentPrice.toFixed(2)}` : 'Unavailable';
+      document.getElementById('wti-price').textContent = wtiPrice ? `$${wtiPrice.toFixed(2)}` : 'Unavailable';
+
+      updateChart(brentPrice, wtiPrice);
+    }
+
+    function updateChart(brentPrice, wtiPrice) {
+      const ctx = document.getElementById('priceChart').getContext('2d');
+      new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: ['Brent', 'WTI'],
+          datasets: [{
+            label: 'Price in USD',
+            data: [brentPrice, wtiPrice],
+            backgroundColor: ['#007bff', '#28a745']
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: {
+              display: false
+            },
+            title: {
+              display: true,
+              text: 'Current Crude Oil Prices'
+            }
           }
         }
-      }
-    });
+      });
+    }
+
+    updatePrices();
   </script>
 </body>
 </html>
